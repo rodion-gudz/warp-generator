@@ -141,7 +141,7 @@ const sessionCache = {
     timestamp: null
 };
 
-const BLOCKED_IPS_URL = 'https://www.warp-generator.workers.dev/blocked-ips';
+const BLOCKED_IPS_URL = 'https://corsproxy.io/?https%3A%2F%2Fbeta.iplist.opencck.org%2F%3Fformat%3Dcomma%26data%3Dcidr4%26filesave%3D1';
 
 const fetchFullConfig = async () => {
     if (sessionCache.config) {
