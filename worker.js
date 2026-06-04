@@ -2,6 +2,8 @@
 
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
     // Обработка CORS для всех запросов
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -27,6 +29,10 @@ export default {
     }
 
     try {
+      if (url.pathname === '/blocked-ips') {
+        return getBlockedIps(corsHeaders);
+      }
+
       const warpData = await getWarpData();
       
       if (!warpData) {
@@ -57,6 +63,33 @@ export default {
     }
   },
 };
+
+async function getBlockedIps(corsHeaders) {
+  const response = await fetch('https://beta.iplist.opencck.org/?format=comma&data=cidr4&filesave=1', {
+    headers: {
+      'Accept': 'text/plain',
+      'User-Agent': 'warp-generator/1.0'
+    },
+    cf: {
+      cacheTtl: 0,
+      cacheEverything: false
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch blocked IPs: ${response.status}`);
+  }
+
+  const blockedIps = await response.text();
+  return new Response(blockedIps, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      ...corsHeaders,
+    },
+  });
+}
 
 // Генерация случайных байт
 function generateRandomBytes(length) {

@@ -141,6 +141,8 @@ const sessionCache = {
     timestamp: null
 };
 
+const BLOCKED_IPS_URL = 'https://www.warp-generator.workers.dev/blocked-ips';
+
 const fetchFullConfig = async () => {
     if (sessionCache.config) {
         console.log('Using cached config');
@@ -183,6 +185,26 @@ const fetchFullConfig = async () => {
     }
     
     throw lastError;
+};
+
+const getAllowedIPsForAmnezia = async () => {
+    const blockedOnlyCheckbox = document.getElementById('blockedOnly');
+    if (blockedOnlyCheckbox && blockedOnlyCheckbox.checked) {
+        const response = await fetchWithTimeout(BLOCKED_IPS_URL, {
+            cache: 'no-store',
+            headers: {
+                'Accept': 'text/plain'
+            }
+        }, 7000);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch blocked IPs: ${response.status}`);
+        }
+
+        return (await response.text()).trim().replace(/\s*,\s*/g, ', ');
+    }
+
+    return getSelectedSites();
 };
 
 // Popup notification
@@ -253,7 +275,7 @@ AWGm1.addEventListener('click', async () => {
 			address = `${configData.client_ipv4}, ${configData.client_ipv6}`;
 		} else {dns = dns.split(',').filter(ip => !ip.includes(':')).join(',');}
 		
-		const allowedIPs = getSelectedSites();
+		const allowedIPs = await getAllowedIPsForAmnezia();
 		const wireGuardText = `[Interface]
 PrivateKey = ${configData.privKey}
 Address = ${address}
@@ -332,7 +354,7 @@ AWGm2.addEventListener('click', async () => {
 			address = `${configData.client_ipv4}, ${configData.client_ipv6}`;			
 		} else {dns = dns.split(',').filter(ip => !ip.includes(':')).join(',');}
 		
-		const allowedIPs = getSelectedSites();
+		const allowedIPs = await getAllowedIPsForAmnezia();
 		const wireGuardText = `[Interface]
 PrivateKey = ${configData.privKey}
 Address = ${address}
@@ -410,7 +432,7 @@ AWGm3.addEventListener('click', async () => {
 			address = `${configData.client_ipv4}, ${configData.client_ipv6}`;
 		} else {dns = dns.split(',').filter(ip => !ip.includes(':')).join(',');}
 		
-		const allowedIPs = getSelectedSites();
+		const allowedIPs = await getAllowedIPsForAmnezia();
 		const wireGuardText = `[Interface]
 PrivateKey = ${configData.privKey}
 Address = ${address}
@@ -859,6 +881,7 @@ window.onclick = function(event) {
 // Функция для проверки выбранных сайтов и управления toggle
 function updateToggleState() {
     const toggleCheckbox = document.getElementById('rules');
+    const blockedOnlyCheckbox = document.getElementById('blockedOnly');
     const siteCheckboxes = document.querySelectorAll('.Sites .payment-radio');
     
     // Проверяем, выбран ли хотя бы один чекбокс сайта
@@ -873,8 +896,15 @@ function updateToggleState() {
     if (isAnySiteChecked) {
         toggleCheckbox.disabled = true;
         toggleCheckbox.checked = false; // Сбрасываем toggle
+        if (blockedOnlyCheckbox) {
+            blockedOnlyCheckbox.disabled = true;
+            blockedOnlyCheckbox.checked = false;
+        }
     } else {
         toggleCheckbox.disabled = false;
+        if (blockedOnlyCheckbox) {
+            blockedOnlyCheckbox.disabled = false;
+        }
     }
 }
 
